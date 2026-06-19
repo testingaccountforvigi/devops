@@ -1,0 +1,29 @@
+# ── Node ──────────────────────────────────────────────────────
+node_modules
+npm-debug.log*
+yarn-error.log
+
+# ── Environment & secrets ─────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Dev tooling ───────────────────────────────────────────────
+.eslintrc*
+.prettierrc*
+nodemon.json
+*.test.js
+__tests__/
+coverage/
+
+# ── OS artefacts ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Git ───────────────────────────────────────────────────────
+.git
+.gitignore
+
+# ── Docs ──────────────────────────────────────────────────────
+docs/
+*.md

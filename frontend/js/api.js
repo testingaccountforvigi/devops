@@ -3,7 +3,12 @@
    All fetch calls go through here.
    ============================================================ */
 
-const API_BASE = 'http://localhost:3000/api';
+/*
+ * API_BASE uses a relative path so it works in both environments:
+ *   Local dev  → backend runs on same origin (localhost:3000), /api routes work directly
+ *   Docker     → nginx reverse-proxies /api/* to the backend container internally
+ */
+const API_BASE = '/api';
 
 /* ── Token helpers ── */
 const Auth = {

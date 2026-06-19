@@ -1,0 +1,158 @@
+# =============================================================
+#  LoanPro — Docker Compose
+#  Three services:  mysql → backend → frontend (nginx)
+#
+#  Startup order (strict):
+#    1. mysql      (waits until healthcheck passes)
+#    2. backend    (waits for mysql healthy, then seeds + starts)
+#    3. frontend   (waits for backend healthy)
+#
+#  Network:  loanpro-net  (bridge)
+#    frontend ──/api proxy──→ backend ──query──→ mysql
+#
+#  Only the frontend port (80) is published to the host.
+#  The backend and mysql ports are internal only.
+#
+#  Run:   docker compose up -d --build
+#  Stop:  docker compose down
+#  Logs:  docker compose logs -f
+# =============================================================
+
+services:
+
+  # ─────────────────────────────────────────────────────────
+  # MySQL 8
+  # ─────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: loanpro-mysql
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE:      loan_origination_db
+      # Tell MySQL to use UTF-8 from the first boot
+      MYSQL_ROOT_HOST:     "%"
+
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+      # Let init scripts use DELIMITER $$ (required by our trigger)
+      - --local-infile=1
+
+    volumes:
+      # Persistent data volume — survives container restarts
+      - mysql_data:/var/lib/mysql
+      # Schema is automatically executed on first container creation.
+      # MySQL runs every *.sql file found in this directory.
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+    networks:
+      - loanpro-net
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin", "ping",
+          "-h", "localhost",
+          "-u", "root",
+          "--password=rootpassword"
+        ]
+      interval:     10s
+      timeout:      5s
+      retries:      10
+      start_period: 40s   # give InnoDB time to initialise on first boot
+
+  # ─────────────────────────────────────────────────────────
+  # Node.js / Express  API
+  # Build context is the project root so the Dockerfile can
+  # reach both backend/ and database/seed.js.
+  # ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context:    .               # project root
+      dockerfile: backend/Dockerfile
+    container_name: loanpro-backend
+    restart: unless-stopped
+
+    environment:
+      PORT:         3000
+      NODE_ENV:     production
+
+      # DB credentials — must match mysql service above
+      DB_HOST:      mysql          # Docker DNS resolves to the mysql container
+      DB_PORT:      3306
+      DB_NAME:      loan_origination_db
+      DB_USER:      root
+      DB_PASSWORD:  rootpassword
+
+      # JWT — replace this secret in production with a fresh random value
+      JWT_SECRET:   9d190b58efaeac531e8c58236ed99390085320bb6bc4d08097af5b6c070a8581799f0fb68fadcf6b05d603279df4fab9375692587c1451ad0497ee6c58438315
+      JWT_EXPIRES_IN: 24h
+
+      # Allow requests proxied from the nginx frontend container
+      CORS_ORIGIN:  http://localhost
+
+    depends_on:
+      mysql:
+        condition: service_healthy   # only start after MySQL healthcheck passes
+
+    networks:
+      - loanpro-net
+
+    # No ports published — only nginx talks to the backend internally.
+    # Uncomment below if you need direct API access during development:
+    # ports:
+    #   - "3000:3000"
+
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval:     15s
+      timeout:      5s
+      retries:      5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────────────────
+  # Nginx  (serves static files + reverse-proxies /api)
+  # ─────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context:    ./frontend
+      dockerfile: Dockerfile
+    container_name: loanpro-frontend
+    restart: unless-stopped
+
+    ports:
+      - "80:80"     # only port visible to the outside world
+
+    depends_on:
+      backend:
+        condition: service_healthy   # proxy target must be up first
+
+    networks:
+      - loanpro-net
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
+      interval: 20s
+      timeout:  5s
+      retries:  3
+      start_period: 10s
+
+# =============================================================
+# Named volumes
+# =============================================================
+volumes:
+  mysql_data:
+    name: loanpro-mysql-data
+
+# =============================================================
+# Networks
+# =============================================================
+networks:
+  loanpro-net:
+    name:   loanpro-net
+    driver: bridge

@@ -1,0 +1,10 @@
+# Exclude files that don't belong in the nginx html root
+# NOTE: nginx.conf is intentionally NOT excluded — the Dockerfile COPYs it
+
+# OS artefacts
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
