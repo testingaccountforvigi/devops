@@ -1,0 +1,11 @@
+# ===========================================================
+# LoanPro — Namespace
+# ===========================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: loan-system
+  labels:
+    name: loan-system
+    app: loanpro
+    managed-by: kubectl

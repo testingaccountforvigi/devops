@@ -1,0 +1,40 @@
+# ===========================================================
+# LoanPro — Ingress
+# Host: loan-system.local
+# Routes: /api -> backend-service:3000
+#         /    -> frontend-service:80
+# ===========================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: loanpro-ingress
+  namespace: loan-system
+  labels:
+    app: loanpro
+    component: ingress
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: loan-system.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80

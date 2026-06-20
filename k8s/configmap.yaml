@@ -1,0 +1,19 @@
+# ===========================================================
+# LoanPro — ConfigMap
+# ===========================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loanpro-config
+  namespace: loan-system
+  labels:
+    app: loanpro
+    component: config
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  JWT_EXPIRES_IN: "24h"
+  DB_HOST: "mysql-service"
+  DB_PORT: "3306"
+  DB_NAME: "loan_origination_db"
+  CORS_ORIGIN: "http://loan-system.local"

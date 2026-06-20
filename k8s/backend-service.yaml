@@ -1,0 +1,21 @@
+# ===========================================================
+# LoanPro — Backend Service (ClusterIP)
+# ===========================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: loan-system
+  labels:
+    app: loanpro
+    component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: loanpro
+    component: backend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP

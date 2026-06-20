@@ -1,0 +1,22 @@
+# ===========================================================
+# LoanPro — MySQL Service (ClusterIP)
+# DNS: mysql-service.loan-system.svc.cluster.local
+# ===========================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  namespace: loan-system
+  labels:
+    app: loanpro
+    component: mysql
+spec:
+  type: ClusterIP
+  selector:
+    app: loanpro
+    component: mysql
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+      protocol: TCP
