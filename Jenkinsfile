@@ -13,7 +13,7 @@
 //  DockerHub username : mahesh3003
 //  GitHub repo        : https://github.com/testingaccountforvigi/DevOps
 //  Kubeconfig         : k8s/kubeconfig-jenkins.yaml (embedded certs)
-//  Minikube API       : https://192.168.49.2:8443
+//  Minikube API       : https://192.168.49.2:8443  (stable internal IP)
 // =============================================================
 
 pipeline {
@@ -56,8 +56,10 @@ pipeline {
 
         // ─────────────────────────────────────────────────────
         // STAGE 2 — Install kubectl
-        // Downloads kubectl binary into the workspace .bin/ dir
-        // so the pipeline never depends on system packages.
+        // Auto-detects CPU architecture (amd64 / arm64) so the
+        // correct binary is downloaded whether Jenkins runs on
+        // x86_64 or Apple-Silicon (aarch64) hardware.
+        // Always re-downloads to clear any stale/wrong-arch binary.
         // ─────────────────────────────────────────────────────
         stage('Install kubectl') {
             steps {
@@ -65,15 +67,19 @@ pipeline {
                 sh '''
                     mkdir -p "${WORKSPACE}/.bin"
 
-                    # Download if not already present or wrong version
-                    if [ ! -f "${KUBECTL}" ]; then
-                        echo "Downloading kubectl..."
-                        curl -sSLo "${KUBECTL}" \
-                            "https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl"
-                        chmod +x "${KUBECTL}"
-                    fi
+                    # Detect architecture: x86_64 → amd64, aarch64 → arm64
+                    ARCH=$(uname -m | sed "s/x86_64/amd64/;s/aarch64/arm64/;s/armv7l/arm/")
+                    echo "Detected arch: ${ARCH}"
 
-                    "${KUBECTL}" version --client --short 2>/dev/null || \
+                    echo "Downloading kubectl for linux/${ARCH}..."
+                    curl -sSLo "${KUBECTL}" \
+                        "https://dl.k8s.io/release/v1.29.0/bin/linux/${ARCH}/kubectl"
+
+                    # Use chmod 755 — more explicit than +x
+                    chmod 755 "${KUBECTL}"
+
+                    echo "kubectl binary info:"
+                    file "${KUBECTL}" || true
                     "${KUBECTL}" version --client
                 '''
             }
